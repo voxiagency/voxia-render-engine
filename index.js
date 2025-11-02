@@ -1,39 +1,60 @@
 import express from "express";
-import { chromium } from "playwright";
+import puppeteer from "puppeteer";
 
 const app = express();
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "12mb" }));
 
-app.get("/health", (_, res) => res.json({ status: "ok" }));
+// Healthcheck
+app.get("/", (_req, res) => res.json({ ok: true, name: "VoxIA Render Engine", mode: "railway" }));
 
+// Renderiza HTML a PDF (o PNG). Devuelve BINARIO directamente.
 app.post("/render", async (req, res) => {
-  const { html, type = "png", width = 1080, height = 1920, fullPage = true } = req.body || {};
-  if (!html) return res.status(400).json({ error: "HTML requerido" });
-
-  let browser;
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+    const {
+      html,
+      type = "pdf",          // "pdf" | "png"
+      width = 1080,
+      height = 1600,
+      fullPage = true,       // para PNG largo
+      pdf = { format: "A4", printBackground: true } // opciones PDF
+    } = req.body || {};
+
+    if (!html || typeof html !== "string" || html.length < 16) {
+      return res.status(400).json({ error: "HTML requerido" });
+    }
+
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--single-process",
+        "--no-zygote"
+      ]
     });
 
-    const context = await browser.newContext({ viewport: { width: Number(width), height: Number(height) } });
-    const page = await context.newPage();
-    await page.setContent(html, { waitUntil: "networkidle" });
+    const page = await browser.newPage();
+    await page.setViewport({ width: Number(width), height: Number(height) });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const isPdf = type === "pdf";
-    const buffer = isPdf
-      ? await page.pdf({ format: "A4", printBackground: true })
-      : await page.screenshot({ type: "png", fullPage: Boolean(fullPage) });
+    let buffer;
+    if (type === "png") {
+      buffer = await page.screenshot({ type: "png", fullPage: Boolean(fullPage) });
+      res.setHeader("Content-Type", "image/png");
+    } else {
+      buffer = await page.pdf({ ...pdf });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", 'inline; filename="diagnostico.pdf"');
+    }
 
     await browser.close();
-    res.setHeader("Content-Type", isPdf ? "application/pdf" : "image/png");
     res.send(buffer);
   } catch (err) {
-    if (browser) try { await browser.close(); } catch {}
-    res.status(500).json({ error: err.message });
+    console.error("Render error:", err);
+    res.status(500).json({ error: String(err && err.message ? err.message : err) });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🟢 VoxIA Render Engine (Playwright) en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🟢 VoxIA Render (Puppeteer) escuchando en ${PORT}`));
