@@ -10,16 +10,17 @@ export default async function handler(req, res) {
     const { html, type = "png", width = 1080, height = 1920 } = req.body || {};
     if (!html) return res.status(400).json({ error: "HTML requerido" });
 
-    // Opcional: mejora fuentes en serverless
-    chromium.setGraphicsMode = true;
+    // Recomendaciones de Sparticuz para serverless
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
 
-    const executablePath = await chromium.executablePath(); // Binario de Sparticuz en Vercel
+    const executablePath = await chromium.executablePath();
 
     const browser = await puppeteer.launch({
       executablePath,
-      headless: "new",                    // evita warning deprecations
+      headless: "new",
       args: [
-        ...chromium.args,                 // flags correctas para serverless
+        ...chromium.args,
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
