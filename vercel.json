@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "builds": [
-    { "src": "api/render.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/api/render", "dest": "api/render.js" }
-  ]
-}
