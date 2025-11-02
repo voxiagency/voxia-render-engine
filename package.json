@@ -2,6 +2,9 @@
   "name": "voxia-render-engine",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "vercel-build": "npm install --legacy-peer-deps && echo 'Dependencies installed successfully'"
+  },
   "dependencies": {
     "puppeteer-core": "21.3.8",
     "chrome-aws-lambda": "10.1.0"
