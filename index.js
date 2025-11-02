@@ -43,7 +43,11 @@ app.post("/render", async (req, res) => {
       buffer = await page.screenshot({ type: "png", fullPage: Boolean(fullPage) });
       res.setHeader("Content-Type", "image/png");
     } else {
-      buffer = await page.pdf({ ...pdf });
+     buffer = await page.pdf({
+  format: "A4",
+  printBackground: true,
+  margin: { top: 0, bottom: 0, left: 0, right: 0 }
+});
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", 'inline; filename="diagnostico.pdf"');
     }
