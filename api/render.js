@@ -1,48 +1,51 @@
-import chromium from "chrome-aws-lambda";
+import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { html, type = "png", width = 1080, height = 1920 } = req.body || {};
-
-  if (!html) {
-    return res.status(400).json({ error: "HTML requerido" });
-  }
-
   try {
-    // Intentamos obtener el path de Chrome válido para Vercel
-    const executablePath = (await chromium.executablePath) || "/usr/bin/google-chrome-stable";
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const { html, type = "png", width = 1080, height = 1920 } = req.body || {};
+    if (!html) return res.status(400).json({ error: "HTML requerido" });
+
+    // Opcional: mejora fuentes en serverless
+    chromium.setGraphicsMode = true;
+
+    const executablePath = await chromium.executablePath(); // Binario de Sparticuz en Vercel
 
     const browser = await puppeteer.launch({
-      args: chromium.args,
       executablePath,
-      headless: chromium.headless,
-      defaultViewport: { width, height },
+      headless: "new",                    // evita warning deprecations
+      args: [
+        ...chromium.args,                 // flags correctas para serverless
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--single-process",
+        "--no-zygote"
+      ],
+      defaultViewport: { width, height }
     });
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    let buffer;
-    let mimeType;
-
+    let buffer, mime;
     if (type === "pdf") {
       buffer = await page.pdf({ format: "A4", printBackground: true });
-      mimeType = "application/pdf";
+      mime = "application/pdf";
     } else {
       buffer = await page.screenshot({ type: "png", fullPage: true });
-      mimeType = "image/png";
+      mime = "image/png";
     }
 
     await browser.close();
-
-    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Type", mime);
     res.send(buffer);
-  } catch (error) {
-    console.error("Error en render:", error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error("Render error:", err);
+    res.status(500).json({ error: err.message });
   }
 }
