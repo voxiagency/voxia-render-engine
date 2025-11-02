@@ -3,7 +3,14 @@
     "api/render.js": {
       "memory": 1024,
       "maxDuration": 60,
-      "includeFiles": "node_modules/@sparticuz/chromium/**"
+       "includeFiles": [
+        "node_modules/@sparticuz/chromium/**",
+        "node_modules/@sparticuz/chromium/**/**",
+        "node_modules/@sparticuz/chromium/lib/**",
+        "node_modules/@sparticuz/chromium/bin/**",
+        "node_modules/@sparticuz/chromium/swiftshader/**",
+        "node_modules/@sparticuz/chromium/locales/**"
+      ]
     }
   }
 }
