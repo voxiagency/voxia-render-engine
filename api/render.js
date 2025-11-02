@@ -1,5 +1,7 @@
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
+import path from "path";
+import { fileURLToPath } from "url";
 
 export default async function handler(req, res) {
   try {
@@ -10,11 +12,21 @@ export default async function handler(req, res) {
     const { html, type = "png", width = 1080, height = 1920 } = req.body || {};
     if (!html) return res.status(400).json({ error: "HTML requerido" });
 
-    // Recomendaciones de Sparticuz para serverless
+    // Ajustes recomendados para serverless
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
 
     const executablePath = await chromium.executablePath();
+
+    // --- FIX CLAVE: asegurar que las .so estén en el LD_LIBRARY_PATH ---
+    // Ubicamos la carpeta base del binario y su carpeta lib
+    const chromeDir = path.dirname(executablePath);            // .../@sparticuz/chromium/bin
+    const libDir    = path.join(chromeDir, "..", "lib");       // .../@sparticuz/chromium/lib
+
+    // Prependemos rutas para que el loader encuentre libnss3.so y demás
+    const currentLd = process.env.LD_LIBRARY_PATH || "";
+    process.env.LD_LIBRARY_PATH = [libDir, chromeDir, currentLd].filter(Boolean).join(":");
+    // -------------------------------------------------------------------
 
     const browser = await puppeteer.launch({
       executablePath,
@@ -25,7 +37,8 @@ export default async function handler(req, res) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--single-process",
-        "--no-zygote"
+        "--no-zygote",
+        "--use-gl=swiftshader"
       ],
       defaultViewport: { width, height }
     });
